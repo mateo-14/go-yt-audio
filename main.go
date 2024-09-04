@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strconv"
 	"sync"
+
+	"githubo.com/mateo-14/go-yt/ytdlp"
 )
 
 var (
@@ -16,8 +18,8 @@ var (
 )
 
 func main() {
+	ytdlp.CheckYtdl()
 	mux := http.NewServeMux()
-
 	mux.HandleFunc("GET /{url}", func(w http.ResponseWriter, r *http.Request) {
 		url := r.PathValue("url")
 
@@ -63,11 +65,12 @@ func main() {
 		}
 	})
 
+	log.Println("Listening on :8080")
 	http.ListenAndServe(":8080", mux)
 }
 
 func downloadYt(id string) error {
-	cmd := exec.Command("yt-dlp", "-o", "-", "-x", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
+	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-f", "worst*[acodec=opus]", "-o", "-", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
