@@ -112,5 +112,10 @@ func downloadFile(url string) {
 		log.Fatal(err)
 	}
 
+	err = os.Chmod(name, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.Println("YTDL: Latest version downloaded")
 }
