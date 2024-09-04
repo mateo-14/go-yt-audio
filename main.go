@@ -18,6 +18,7 @@ var (
 )
 
 func main() {
+	log.SetOutput(os.Stdout)
 	ytdlp.CheckYtdl()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{url}", func(w http.ResponseWriter, r *http.Request) {
