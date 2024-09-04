@@ -1,2 +1,6 @@
 main.exe
 *.opus
+yt-dlp.exe
+yt-dlp_linux
+yt-dlp_macos
+.env
