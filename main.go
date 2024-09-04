@@ -32,7 +32,7 @@ func main() {
 	log.SetOutput(os.Stdout)
 	err := gotenv.Load()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	// Get database connection
