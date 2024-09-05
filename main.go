@@ -129,7 +129,7 @@ func main() {
 }
 
 func downloadAndUploadAudio(ctx context.Context, id string) error {
-	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-f", "worst*[acodec=opus]", "-o", "-", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
+	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-f", "worst*[acodec=opus]", "--embed-metadata", "-o", "-x", "-", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
