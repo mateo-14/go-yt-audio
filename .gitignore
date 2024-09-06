@@ -1,2 +1,5 @@
 main.exe
 *.opus
+.env
+ffmpeg.exe
+yt-dlp.exe
