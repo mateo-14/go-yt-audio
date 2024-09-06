@@ -2,14 +2,15 @@ package ffmpeg
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"runtime"
 
+	"github.com/ulikunitz/xz"
 	"githubo.com/mateo-14/go-yt/ytdlp"
 )
 
@@ -72,13 +73,12 @@ func download(url string) {
 	}
 	defer res.Body.Close()
 
-	uncompressedStream, err := gzip.NewReader(res.Body)
+	uncompressedStream, err := xz.NewReader(res.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer uncompressedStream.Close()
-
 	tarReader := tar.NewReader(uncompressedStream)
+	var folder string
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -89,19 +89,42 @@ func download(url string) {
 		}
 
 		switch header.Typeflag {
-		case tar.TypeReg:
-			if header.Name == "ffmpeg" {
-				out, err := os.Create("ffmpeg")
+		case tar.TypeDir:
+			{
+				err := os.MkdirAll(header.Name, 0755)
 				if err != nil {
 					log.Fatal(err)
 				}
-				defer out.Close()
-
-				_, err = io.Copy(out, tarReader)
-				if err != nil {
-					log.Fatal(err)
-				}
+				folder = header.Name
+				break
 			}
 		}
+	}
+
+	f, err := os.Open(path.Join(folder, "bin", "ffmpeg"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	out, err := os.Create("ffmpeg")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = out.Sync()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.Chmod("ffmpeg", 0755)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
