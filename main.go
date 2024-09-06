@@ -175,13 +175,25 @@ func downloadAndUploadAudio(ctx context.Context, id string) error {
 	cmd2.Stdout = &buffer
 
 	log.Println("Starting download and conversion")
-	cmd.Start()
-	cmd2.Start()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
 
-	cmd.Wait()
+	if err := cmd2.Start(); err != nil {
+		return err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
+
 	log.Println("Downloaded")
 	pipew.Close()
-	cmd2.Wait()
+
+	if err := cmd2.Wait(); err != nil {
+		return err
+	}
+
 	log.Println("Converted")
 
 	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
