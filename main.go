@@ -28,6 +28,11 @@ var (
 	bucketName string
 )
 
+type Download struct {
+	wg      *sync.WaitGroup
+	success bool
+}
+
 func main() {
 	log.SetOutput(os.Stdout)
 	err := gotenv.Load()
@@ -94,31 +99,37 @@ func main() {
 			return
 		}
 
-		var wg *sync.WaitGroup
+		var download *Download
 		if v, ok := downloads.Load(url); !ok {
-			wg = &sync.WaitGroup{}
-			wg.Add(1)
-			downloads.Store(url, wg)
+			download = &Download{wg: &sync.WaitGroup{}}
+			download.wg.Add(1)
+			downloads.Store(url, download)
 
 			go func() {
 				log.Printf("Downloading %s", url)
 				if err := downloadAndUploadAudio(r.Context(), url); err != nil {
 					log.Printf("Error downloading %s: %s", url, err)
-					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte("Error downloading audio"))
-					wg.Done()
+					download.success = false
+					downloads.Delete(url)
+					download.wg.Done()
 					return
 				}
 				db.Exec("INSERT INTO yt_downloads (id) VALUES (?)", url)
+				download.success = true
 				downloads.Delete(url)
-				wg.Done()
+				download.wg.Done()
 			}()
 		} else {
-			wg = v.(*sync.WaitGroup)
+			download = v.(*Download)
 			log.Printf("Already downloading %s", url)
 		}
 
-		wg.Wait()
+		download.wg.Wait()
+		if !download.success {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("Error downloading audio"))
+			return
+		}
 
 		w.Header().Set("Location", publicBucket+"/"+url+".opus")
 		w.WriteHeader(http.StatusTemporaryRedirect)
@@ -129,26 +140,35 @@ func main() {
 }
 
 func downloadAndUploadAudio(ctx context.Context, id string) error {
-	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-f", "worst*[acodec=opus]", "--embed-metadata", "-o", "-x", "-", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
-	stdout, err := cmd.StdoutPipe()
+	title, err := getVideoTitle(id)
 	if err != nil {
 		return err
 	}
 
-	err = cmd.Start()
-	if err != nil {
-		return err
-	}
+	piper, pipew := io.Pipe()
+	defer piper.Close()
+	defer pipew.Close()
 
-	content, err := io.ReadAll(stdout)
-	if err != nil {
-		return err
-	}
+	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-f", "worst*[acodec=opus]", "--embed-metadata", "-x", "-o", "-", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
+	cmd2 := exec.Command("./ffmpeg.exe", "-i", "pipe:0", "-f", "opus", "-c:a", "libopus", "-b:a", "49k", "-metadata", fmt.Sprintf("title=%s", title), "pipe:1")
+
+	cmd.Stdout = pipew
+	cmd2.Stdin = piper
+
+	var buffer bytes.Buffer
+	cmd2.Stdout = &buffer
+
+	cmd.Start()
+	cmd2.Start()
+
+	cmd.Wait()
+	pipew.Close()
+	cmd2.Wait()
 
 	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(bucketName),
 		Key:         aws.String(id + ".opus"),
-		Body:        bytes.NewReader(content),
+		Body:        &buffer,
 		ContentType: aws.String("audio/ogg"),
 	})
 
@@ -213,4 +233,15 @@ func getS3Client() (*s3.Client, error) {
 	})
 
 	return s3Client, nil
+}
+
+func getVideoTitle(id string) (string, error) {
+	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "--get-title", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return "", err
+	}
+	return out.String(), nil
 }
