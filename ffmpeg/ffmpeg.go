@@ -96,7 +96,6 @@ func download(url string) {
 					log.Fatal(err)
 				}
 				folder = header.Name
-				break
 			}
 		case tar.TypeReg:
 			{
@@ -105,6 +104,11 @@ func download(url string) {
 					log.Fatal(err)
 				}
 				defer out.Close()
+
+				_, err = io.Copy(out, tarReader)
+				if err != nil {
+					log.Fatal(err)
+				}
 			}
 		}
 	}
