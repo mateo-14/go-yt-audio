@@ -101,7 +101,7 @@ func download(url string) {
 		}
 	}
 
-	f, err := os.Open(path.Join(folder, "bin", "ffmpeg"))
+	f, err := os.Open(path.Join(folder, "ffmpeg"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -127,4 +127,6 @@ func download(url string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	os.RemoveAll(folder)
 }
