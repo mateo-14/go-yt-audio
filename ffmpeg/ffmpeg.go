@@ -1,6 +1,7 @@
 package ffmpeg
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"log"
@@ -82,9 +83,11 @@ func download(url string) {
 		log.Fatal(err)
 	}
 
+	var errbuf bytes.Buffer
 	cmd := exec.Command("tar", "-xvf", "ffmpeg.tar.xz")
+	cmd.Stderr = &errbuf
 	err = cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(errbuf.String())
 	}
 }
