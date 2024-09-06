@@ -151,6 +151,7 @@ func downloadAndUploadAudio(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
+	log.Println(data)
 
 	if data.IsLive {
 		return fmt.Errorf("video is live")
@@ -173,12 +174,15 @@ func downloadAndUploadAudio(ctx context.Context, id string) error {
 	var buffer bytes.Buffer
 	cmd2.Stdout = &buffer
 
+	log.Println("Starting download and conversion")
 	cmd.Start()
 	cmd2.Start()
 
 	cmd.Wait()
+	log.Println("Downloaded")
 	pipew.Close()
 	cmd2.Wait()
+	log.Println("Converted")
 
 	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(bucketName),
