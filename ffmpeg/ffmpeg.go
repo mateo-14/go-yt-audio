@@ -18,7 +18,6 @@ func CheckFfmpeg() {
 	exists := ffmpegExists()
 	if !exists {
 		log.Println("FFmpeg not found")
-		return
 	}
 
 	if runtime.GOOS != "linux" {
