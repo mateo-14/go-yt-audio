@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -31,6 +32,12 @@ var (
 type Download struct {
 	wg      *sync.WaitGroup
 	success bool
+}
+
+type YtVideoData struct {
+	Title    string `json:"title"`
+	IsLive   bool   `json:"is_live"`
+	Duration int    `json:"duration"`
 }
 
 func main() {
@@ -140,9 +147,17 @@ func main() {
 }
 
 func downloadAndUploadAudio(ctx context.Context, id string) error {
-	title, err := getVideoTitle(id)
+	data, err := getVideoData(id)
 	if err != nil {
 		return err
+	}
+
+	if data.IsLive {
+		return fmt.Errorf("video is live")
+	}
+
+	if data.Duration > 600 {
+		return fmt.Errorf("video is too long")
 	}
 
 	piper, pipew := io.Pipe()
@@ -150,7 +165,7 @@ func downloadAndUploadAudio(ctx context.Context, id string) error {
 	defer pipew.Close()
 
 	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-f", "worst*[acodec=opus]", "--embed-metadata", "-x", "-o", "-", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
-	cmd2 := exec.Command("./ffmpeg.exe", "-i", "pipe:0", "-f", "opus", "-c:a", "libopus", "-b:a", "49k", "-metadata", fmt.Sprintf("title=%s", title), "pipe:1")
+	cmd2 := exec.Command("./ffmpeg.exe", "-i", "pipe:0", "-f", "opus", "-c:a", "libopus", "-b:a", "49k", "-metadata", fmt.Sprintf("title=%s", data.Title), "pipe:1")
 
 	cmd.Stdout = pipew
 	cmd2.Stdin = piper
@@ -235,13 +250,19 @@ func getS3Client() (*s3.Client, error) {
 	return s3Client, nil
 }
 
-func getVideoTitle(id string) (string, error) {
-	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "--get-title", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
+func getVideoData(id string) (YtVideoData, error) {
+	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-j", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		return "", err
+
+	if err := cmd.Run(); err != nil {
+		return YtVideoData{}, err
 	}
-	return out.String(), nil
+
+	data := YtVideoData{}
+	if err := json.Unmarshal(out.Bytes(), &data); err != nil {
+		return YtVideoData{}, err
+	}
+
+	return data, nil
 }
