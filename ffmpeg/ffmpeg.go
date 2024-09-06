@@ -1,13 +1,13 @@
 package ffmpeg
 
 import (
-	"bytes"
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"runtime"
 
 	"githubo.com/mateo-14/go-yt/ytdlp"
@@ -72,22 +72,36 @@ func download(url string) {
 	}
 	defer res.Body.Close()
 
-	out, err := os.Create("ffmpeg.tar.xz")
+	uncompressedStream, err := gzip.NewReader(res.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer out.Close()
+	defer uncompressedStream.Close()
 
-	_, err = io.Copy(out, res.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
+	tarReader := tar.NewReader(uncompressedStream)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	var errbuf bytes.Buffer
-	cmd := exec.Command("tar", "-xvf", "ffmpeg.tar.xz")
-	cmd.Stderr = &errbuf
-	err = cmd.Run()
-	if err != nil {
-		log.Fatal(errbuf.String())
+		switch header.Typeflag {
+		case tar.TypeReg:
+			if header.Name == "ffmpeg" {
+				out, err := os.Create("ffmpeg")
+				if err != nil {
+					log.Fatal(err)
+				}
+				defer out.Close()
+
+				_, err = io.Copy(out, tarReader)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+		}
 	}
 }
