@@ -3,7 +3,6 @@ package ffmpeg
 import (
 	"archive/tar"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -91,7 +90,6 @@ func download(url string) {
 
 		switch header.Typeflag {
 		case tar.TypeReg:
-			fmt.Println("Found file: ", header.Name)
 			if header.Name == "ffmpeg-master-latest-linux64-gpl/bin/ffmpeg" {
 				out, err := os.Create(GetExecutableName())
 				if err != nil {
