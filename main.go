@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -166,7 +167,7 @@ func downloadAndUploadAudio(ctx context.Context, id string) error {
 	defer pipew.Close()
 
 	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-f", "worst*[acodec=opus]", "--embed-metadata", "-x", "-o", "-", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
-	cmd2 := exec.Command("./ffmpeg.exe", "-i", "pipe:0", "-f", "opus", "-c:a", "libopus", "-b:a", "49k", "-metadata", fmt.Sprintf("title=%s", data.Title), "pipe:1")
+	cmd2 := exec.Command("./"+getFFmpegExecutableName(), "-i", "pipe:0", "-f", "opus", "-c:a", "libopus", "-b:a", "49k", "-metadata", fmt.Sprintf("title=%s", data.Title), "pipe:1")
 
 	cmd.Stdout = pipew
 	cmd2.Stdin = piper
@@ -174,7 +175,6 @@ func downloadAndUploadAudio(ctx context.Context, id string) error {
 	var buffer bytes.Buffer
 	cmd2.Stdout = &buffer
 
-	log.Println("Starting download and conversion")
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -187,15 +187,11 @@ func downloadAndUploadAudio(ctx context.Context, id string) error {
 		return err
 	}
 
-	log.Println("Downloaded")
 	pipew.Close()
 
 	if err := cmd2.Wait(); err != nil {
 		return err
 	}
-
-	log.Println("Converted")
-
 	_, err = s3Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(bucketName),
 		Key:         aws.String(id + ".opus"),
@@ -281,4 +277,12 @@ func getVideoData(id string) (YtVideoData, error) {
 	}
 
 	return data, nil
+}
+
+func getFFmpegExecutableName() string {
+	os := runtime.GOOS
+	if os == "windows" {
+		return "ffmpeg.exe"
+	}
+	return "ffmpeg"
 }
