@@ -3,11 +3,11 @@ package ffmpeg
 import (
 	"archive/tar"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"runtime"
 
 	"github.com/ulikunitz/xz"
@@ -18,6 +18,7 @@ func CheckFfmpeg() {
 	exists := ffmpegExists()
 	if !exists {
 		log.Println("FFmpeg not found")
+		return
 	}
 
 	if runtime.GOOS != "linux" {
@@ -56,7 +57,7 @@ func GetExecutableName() string {
 		return "ffmpeg.exe"
 	}
 
-	return "ffmpeg"
+	return "ffmpeg_bin"
 }
 
 func ffmpegExists() bool {
@@ -79,6 +80,7 @@ func download(url string) {
 	}
 	tarReader := tar.NewReader(uncompressedStream)
 
+	foundbin := false
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -89,50 +91,31 @@ func download(url string) {
 		}
 
 		switch header.Typeflag {
-		case tar.TypeDir:
-			if err := os.MkdirAll(header.Name, 0755); err != nil {
-				log.Fatal("failed to create directory: %v", err)
-			}
 		case tar.TypeReg:
-			out, err := os.Create(header.Name)
-			if err != nil {
-				log.Fatal(err)
-			}
-			defer out.Close()
+			fmt.Println("Found file: ", header.Name)
+			if header.Name == "ffmpeg-master-latest-linux64-gpl/bin/ffmpeg" {
+				out, err := os.Create(GetExecutableName())
+				if err != nil {
+					log.Fatal(err)
+				}
+				defer out.Close()
 
-			_, err = io.Copy(out, tarReader)
-			if err != nil {
-				log.Fatal(err)
+				_, err = io.Copy(out, tarReader)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				err = os.Chmod(GetExecutableName(), 0755)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				foundbin = true
 			}
 		}
-	}
 
-	f, err := os.Open(path.Join("ffmpeg-master-lastest-linux64-lgpl", "bin", "ffmpeg"))
-	if err != nil {
-		log.Fatal(err)
+		if foundbin {
+			break
+		}
 	}
-	defer f.Close()
-
-	out, err := os.Create("ffmpeg")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, f)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = out.Sync()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = os.Chmod("ffmpeg", 0755)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	os.RemoveAll("ffmpeg-master-lastest-linux64-lgpl")
 }
