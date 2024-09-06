@@ -98,6 +98,14 @@ func download(url string) {
 				folder = header.Name
 				break
 			}
+		case tar.TypeReg:
+			{
+				out, err := os.Create(path.Join(folder, path.Base(header.Name)))
+				if err != nil {
+					log.Fatal(err)
+				}
+				defer out.Close()
+			}
 		}
 	}
 
