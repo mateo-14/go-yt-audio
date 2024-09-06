@@ -78,7 +78,7 @@ func download(url string) {
 		log.Fatal(err)
 	}
 	tarReader := tar.NewReader(uncompressedStream)
-	var folder string
+
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -90,30 +90,24 @@ func download(url string) {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			{
-				err := os.MkdirAll(header.Name, 0755)
-				if err != nil {
-					log.Fatal(err)
-				}
-				folder = header.Name
+			if err := os.MkdirAll(header.Name, 0755); err != nil {
+				log.Fatal("failed to create directory: %v", err)
 			}
 		case tar.TypeReg:
-			{
-				out, err := os.Create(path.Join(folder, path.Base(header.Name)))
-				if err != nil {
-					log.Fatal(err)
-				}
-				defer out.Close()
+			out, err := os.Create(header.Name)
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer out.Close()
 
-				_, err = io.Copy(out, tarReader)
-				if err != nil {
-					log.Fatal(err)
-				}
+			_, err = io.Copy(out, tarReader)
+			if err != nil {
+				log.Fatal(err)
 			}
 		}
 	}
 
-	f, err := os.Open(path.Join(folder, "ffmpeg"))
+	f, err := os.Open(path.Join("ffmpeg-master-lastest-linux64-lgpl", "bin", "ffmpeg"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,5 +134,5 @@ func download(url string) {
 		log.Fatal(err)
 	}
 
-	os.RemoveAll(folder)
+	os.RemoveAll("ffmpeg-master-lastest-linux64-lgpl")
 }
