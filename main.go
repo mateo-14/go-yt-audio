@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/subosito/gotenv"
+	"githubo.com/mateo-14/go-yt/ffmpeg"
 	"githubo.com/mateo-14/go-yt/ytdlp"
 )
 
@@ -72,6 +73,7 @@ func main() {
 	}
 
 	ytdlp.CheckYtdl()
+	ffmpeg.CheckFfmpeg()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{url}", func(w http.ResponseWriter, r *http.Request) {
@@ -152,7 +154,6 @@ func downloadAndUploadAudio(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	log.Println(data)
 
 	if data.IsLive {
 		return fmt.Errorf("video is live")
