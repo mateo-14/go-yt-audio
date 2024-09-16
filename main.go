@@ -41,6 +41,11 @@ type YtVideoData struct {
 	Duration int    `json:"duration"`
 }
 
+type Response struct {
+	Error string `json:"error"`
+	URL   string `json:"url"`
+}
+
 func main() {
 	log.SetOutput(os.Stdout)
 	err := gotenv.Load()
@@ -80,15 +85,16 @@ func main() {
 
 		if url == "" || url == "favicon.ico" {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte("Invalid URL"))
+			resp := Response{Error: "Invalid URL"}
+			json.NewEncoder(w).Encode(resp)
 			return
 		}
 
 		rows, err := db.Query("SELECT id FROM yt_downloads WHERE id = ?", url)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Error querying database"))
-			log.Println(err)
+			resp := Response{Error: "Error querying database"}
+			json.NewEncoder(w).Encode(resp)
 			return
 		}
 
@@ -97,14 +103,16 @@ func main() {
 			_, err := db.Exec("UPDATE yt_downloads SET last_accessed = CURRENT_TIMESTAMP WHERE id = ?", url)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte("Error updating database"))
-				log.Println(err)
+				resp := Response{Error: "Error updating database"}
+				json.NewEncoder(w).Encode(resp)
 				return
 			}
 
 			log.Printf("File exists %s", url)
-			w.Header().Set("Location", publicBucket+"/"+url+".opus")
+
 			w.WriteHeader(http.StatusTemporaryRedirect)
+			resp := Response{URL: publicBucket + "/" + url + ".opus"}
+			json.NewEncoder(w).Encode(resp)
 			return
 		}
 
@@ -136,12 +144,14 @@ func main() {
 		download.wg.Wait()
 		if !download.success {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Error downloading audio"))
+			resp := Response{Error: "Error downloading audio"}
+			json.NewEncoder(w).Encode(resp)
 			return
 		}
 
-		w.Header().Set("Location", publicBucket+"/"+url+".opus")
 		w.WriteHeader(http.StatusTemporaryRedirect)
+		resp := Response{URL: publicBucket + "/" + url + ".opus"}
+		json.NewEncoder(w).Encode(resp)
 	})
 
 	log.Println("Listening on :8080")
