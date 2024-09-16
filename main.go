@@ -116,7 +116,7 @@ func main() {
 
 			go func() {
 				log.Printf("Downloading %s", url)
-				if err := downloadAndUploadAudio(r.Context(), url); err != nil {
+				if err := downloadAndUploadAudio(context.TODO(), url); err != nil {
 					log.Printf("Error downloading %s: %s", url, err)
 					download.success = false
 					downloads.Delete(url)
