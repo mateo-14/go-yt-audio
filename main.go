@@ -110,7 +110,7 @@ func main() {
 
 			log.Printf("File exists %s", url)
 
-			w.WriteHeader(http.StatusTemporaryRedirect)
+			w.WriteHeader(http.StatusOK)
 			resp := Response{URL: publicBucket + "/" + url + ".opus"}
 			json.NewEncoder(w).Encode(resp)
 			return
@@ -149,7 +149,7 @@ func main() {
 			return
 		}
 
-		w.WriteHeader(http.StatusTemporaryRedirect)
+		w.WriteHeader(http.StatusOK)
 		resp := Response{URL: publicBucket + "/" + url + ".opus"}
 		json.NewEncoder(w).Encode(resp)
 	})
