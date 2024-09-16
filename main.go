@@ -176,7 +176,7 @@ func downloadAndUploadAudio(ctx context.Context, id string) error {
 	defer piper.Close()
 	defer pipew.Close()
 
-	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-f", "worst*[acodec=opus]", "--embed-metadata", "-x", "-o", "-", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
+	cmd := exec.Command("./"+ytdlp.GetExecutableName(), "-f", "worst*[acodec=opus]", "-o", "-", fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
 	cmd2 := exec.Command("./"+ffmpeg.GetExecutableName(), "-i", "pipe:0", "-f", "opus", "-c:a", "libopus", "-b:a", "49k", "-metadata", fmt.Sprintf("title=%s", data.Title), "pipe:1")
 
 	cmd.Stdout = pipew
